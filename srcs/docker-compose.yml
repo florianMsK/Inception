@@ -1,0 +1,66 @@
+version: "3.1"
+
+services:
+    mariadb:
+        build: requirements/mariadb 
+        container_name: mariadb
+        env_file: ./.env
+        image: mariadb
+        networks:                               
+            - inception
+        volumes: 
+          - mariadb_vol:/var/lib/mysql          # First is name of the volume then path in hostmachine
+        restart: always                         # Exit with code 137 + isn't restarted (visible with ps -a) but restart when start again the daemon
+
+
+    wordpress:
+        build: requirements/wordpress
+        container_name: wordpress
+        env_file: ./.env
+        image: wordpress
+        depends_on: 
+            - mariadb
+        networks:
+            - inception
+        volumes:
+            - wordpress_vol:/var/www/html
+        restart: always
+
+    nginx:
+        build: requirements/nginx
+        container_name: nginx
+        env_file: ./.env
+        image: nginx
+        depends_on: 
+            - wordpress
+        networks:
+            - inception
+        ports:
+            - "443:443"
+        volumes:
+            - wordpress_vol:/var/www/html
+        restart: always
+
+networks:
+    inception:
+        driver: bridge # par default sur un single host on met bridge, il permet de creer un network interne via IP adresse
+volumes:                #Ici on rend la donnée persistante meme si on supprime ou on remove le container et permet d'etre partagé
+    mariadb_vol:
+        driver: local # par default
+        driver_opts:
+          type: none
+          device: /home/flmastor/data/mariadb_vol
+          o: bind
+
+    wordpress_vol:
+        driver: local
+        driver_opts:
+          type: none  # par default
+          device: /home/flmastor/data/wordpress_vol #machine de l'hote ou on lance le container avec un path qui laisse docker-compose creer le volume 
+          o: bind 
+# Volume management: https://towardsdatascience.com/the-complete-guide-to-docker-volumes-1a06051d2cce
+# https://www.nicelydev.com/docker/volume-docker-compose-yml
+# Bridge: https://cloudkul.com/blog/understanding-communication-docker-containers/
+# Debugging : https://www.matthewsetter.com/basic-docker-compose-debugging/
+# and : www.yamllint.com 
+# for volumes and driver : https://stackoverflow.com/questions/35841241/docker-compose-named-mounted-volume 
